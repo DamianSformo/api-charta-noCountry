@@ -18,15 +18,15 @@ public interface IExpenseService extends GenericServiceAPI<Expense, ExpenseRespo
 
     ExpenseResponseDto update(ExpenseUpdateDto expenseUpdateDto, Long id, String token);
 
-    ExpenseResponseDto getById(Long id, String token);
-
     List<ExpenseResponseDto> getAllByUserId(String token);
 
-    Map<String, Double> groupByCategoryByUserId(String token);
+    ExpenseResponseDto getById(Long id, String token);
 
     HomeResponseDto getForHome(String token);
 
     List<ExpenseResponseDto> filter(String token, List<Long> categoriesId, Double amountMax, Double amountMin, LocalDate start, LocalDate end, String orderBy, String order);
+
+    Map<String, Double> groupByCategoryByUserId(String token);
 
     StatisticsResponseDto getStatistics(String token);
 

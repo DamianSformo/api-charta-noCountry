@@ -38,14 +38,14 @@ public record CategoryController(ICategoryService service) {
     @ApiOperation(value = "Find Category by Id by User", hidden = true)
     @GetMapping("/user/findById/{id}")
     //@PreAuthorize("hasAuthority('USER')")
-    public  ResponseEntity<?> getById(@PathVariable Long id, @RequestHeader("Authorization") String token){
+    public  ResponseEntity<?> findById(@PathVariable Long id, @RequestHeader("Authorization") String token){
         return responseBuilder(OK, service.getById(id, token));
     }
 
     @ApiOperation(value = "Find all categories by User id")
     @GetMapping("/user/findAll")
     //@PreAuthorize("hasAuthority('USER')")
-    public  ResponseEntity<?> getAllByUserId(@RequestHeader("Authorization") String token){
+    public  ResponseEntity<?> findAllByUser(@RequestHeader("Authorization") String token){
         return responseBuilder(OK, service.getAllByUserId(token));
     }
 

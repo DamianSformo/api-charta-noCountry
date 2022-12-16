@@ -30,7 +30,7 @@ public record ExpenseController(IExpenseService service) {
 
     @ApiOperation(value = "Update a Expense by Id")
     //@PreAuthorize("hasAuthority('USER')")
-    @PostMapping("/update/{id}")
+    @PutMapping("/update/{id}")
     public ResponseEntity<?> update(@RequestBody ExpenseUpdateDto expenseUpdateDto,
                                     @PathVariable Long id,
                                     @RequestHeader("Authorization") String token) {
@@ -40,21 +40,21 @@ public record ExpenseController(IExpenseService service) {
     @ApiOperation(value = "Find Expenses by User", hidden = true)
     @GetMapping("/user/findAll")
     //@PreAuthorize("hasAuthority('USER')")
-    public  ResponseEntity<?> getAll(@RequestHeader("Authorization") String token){
+    public  ResponseEntity<?> findAllByUser(@RequestHeader("Authorization") String token){
         return responseBuilder(OK, service.getAllByUserId(token));
     }
 
     @ApiOperation(value = "Find Expense by Id by User", hidden = true)
     @GetMapping("/user/findById/{id}")
     //@PreAuthorize("hasAuthority('USER')")
-    public  ResponseEntity<?> getById(@PathVariable Long id, @RequestHeader("Authorization") String token){
+    public  ResponseEntity<?> findByIdByUser(@PathVariable Long id, @RequestHeader("Authorization") String token){
         return responseBuilder(OK, service.getById(id, token));
     }
 
     @ApiOperation(value = "Find information by User for Home", hidden = true)
     @GetMapping("/user/home")
     //@PreAuthorize("hasAuthority('USER')")
-    public  ResponseEntity<?> getForHome(@RequestHeader("Authorization") String token){
+    public  ResponseEntity<?> findForHomeByUser(@RequestHeader("Authorization") String token){
         return responseBuilder(OK, service.getForHome(token));
     }
 
@@ -83,7 +83,7 @@ public record ExpenseController(IExpenseService service) {
     @ApiOperation(value = "Find information by Statistics by User")
     @GetMapping("/user/statistics")
     //@PreAuthorize("hasAuthority('USER')")
-    public ResponseEntity<?> getStatistics(@RequestHeader("Authorization") String token){
+    public ResponseEntity<?> findStatistics(@RequestHeader("Authorization") String token){
         return responseBuilder(OK, service.getStatistics(token));
     }
 

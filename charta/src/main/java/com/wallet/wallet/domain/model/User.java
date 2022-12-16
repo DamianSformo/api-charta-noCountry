@@ -44,6 +44,7 @@ public class User {
     //@NotNull(message = "")
     //private Languague languague;
 
+    @Enumerated(EnumType.STRING)
     private ERole role;
 
     private Boolean deleted;

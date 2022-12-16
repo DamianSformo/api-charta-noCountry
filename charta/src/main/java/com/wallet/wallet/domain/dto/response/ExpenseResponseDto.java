@@ -9,21 +9,21 @@ public class ExpenseResponseDto {
 
     private Long id;
 
-    private Double importe;
+    private Double amount;
 
-    private String descripcion;
+    private String description;
 
-    private String categoria;
+    private String categoryName;
 
-    private String categoriaIcono;
+    private String categoryIcon;
 
-    private String categoriaColor;
+    private String categoryColorCode;
 
-    private String monedaCodigo;
+    private String currencyCode;
 
-    private LocalDate fecha;
+    private LocalDate date;
 
-    private Boolean esIncluida;
+    private Boolean isIncluded;
 
     private Boolean deleted = Boolean.FALSE;
 

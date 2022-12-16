@@ -77,6 +77,14 @@ public class ExpenseServiceImpl extends GenericServiceImpl<Expense, ExpenseRespo
     }
 
     @Override
+    public List<ExpenseResponseDto> getAllByUserId(String token) {
+        Long userId = jwtUtil.extractUserId(token);
+        User user = userService.getById(userId);
+        return expenseMapper.listEntityToListResponseDto(convertExpense(expenseRepository.getAllByUserId(userId), user.getCurrency().getCodeCurrency(), user.getCurrency().getValueDollar()));
+    }
+
+
+    @Override
     public ExpenseResponseDto getById(Long id, String token) {
 
         Long userId = jwtUtil.extractUserId(token);
@@ -89,22 +97,6 @@ public class ExpenseServiceImpl extends GenericServiceImpl<Expense, ExpenseRespo
             throw new UserUnauthorizedException(messenger.getMessage(USER_UNAUTHORIZED.name(),
                     new Object[] {userId, expense.get().getUser().getId()}, Locale.getDefault()));
         }
-    }
-
-    @Override
-    public List<ExpenseResponseDto> getAllByUserId(String token) {
-        Long userId = jwtUtil.extractUserId(token);
-        User user = userService.getById(userId);
-        return expenseMapper.listEntityToListResponseDto(convertExpense(expenseRepository.getAllByUserId(userId), user.getCurrency().getCodeCurrency(), user.getCurrency().getValueDollar()));
-    }
-
-    public Double getBalanceMonthlyByUserId(List<Expense> expenses) {
-
-        Double balance = 0.0;
-        for (Expense expense : expenses){
-            balance += expense.getAmount();
-        }
-        return balance;
     }
 
     @Override
@@ -133,7 +125,7 @@ public class ExpenseServiceImpl extends GenericServiceImpl<Expense, ExpenseRespo
             movesResponseDto.add(incomeMapper.entityToMoveResponseDto(incomes.get(i)));
         }
 
-        movesResponseDto.sort(Comparator.comparing(MoveResponseDto::getFecha).reversed());
+        movesResponseDto.sort(Comparator.comparing(MoveResponseDto::getDate).reversed());
         while(movesResponseDto.size() > 3){
             movesResponseDto.remove(movesResponseDto.size()-1);
         }
@@ -142,11 +134,70 @@ public class ExpenseServiceImpl extends GenericServiceImpl<Expense, ExpenseRespo
         homeResponseDto.setBalanceIncome(formatDecimals(incomeService.getBalanceMonthlyByUserId(incomes) + incomeService.getBalanceYearlyByUserId(userId,year), 2));
 
         homeResponseDto.setFirstName(user.getFirstName());
-        homeResponseDto.setMonthNow(LocalDate.now().getMonth().toString().toLowerCase());
+
+        switch (month){
+            case 1: homeResponseDto.setMonthNow("enero");
+                break;
+            case 2: homeResponseDto.setMonthNow("febrero");
+                break;
+            case 3: homeResponseDto.setMonthNow("marzo");
+                break;
+            case 4: homeResponseDto.setMonthNow("abril");
+                break;
+            case 5: homeResponseDto.setMonthNow("mayo");
+                break;
+            case 6: homeResponseDto.setMonthNow("junio");
+                break;
+            case 7: homeResponseDto.setMonthNow("julio");
+                break;
+            case 8: homeResponseDto.setMonthNow("agosto");
+                break;
+            case 9: homeResponseDto.setMonthNow("septiembre");
+                break;
+            case 10: homeResponseDto.setMonthNow("octubre");
+                break;
+            case 11: homeResponseDto.setMonthNow("noviembre");
+                break;
+            case 12: homeResponseDto.setMonthNow("diciembre");
+                break;
+        }
+
         homeResponseDto.setSymbolCurrency(user.getCurrency().getSymbol());
         homeResponseDto.setMoves(movesResponseDto);
 
         return homeResponseDto;
+    }
+
+    @Override
+    public List<ExpenseResponseDto> filter(String token, List<Long> categoriesId, Double amountMin, Double amountMax, LocalDate start, LocalDate end, String orderBy, String order) {
+
+        Long userId = jwtUtil.extractUserId(token);
+        User user = userService.getById(userId);
+        String userCodeCurrency = user.getCurrency().getCodeCurrency();
+        Double userValueCurrency = user.getCurrency().getValueDollar();
+
+        List<Expense> expenses;
+
+        if(categoriesId != null && start != null && end != null){
+            expenses = convertExpense(expenseRepository.filterByCategoriesAndDate(userId, categoriesId, start, end, Sort.by(order.equals("ASC") ? Sort.Direction.ASC : Sort.Direction.DESC, orderBy)), userCodeCurrency, userValueCurrency);
+        } else if(categoriesId != null){
+            expenses = convertExpense(expenseRepository.filterByCategories(userId, categoriesId, Sort.by(order.equals("ASC") ? Sort.Direction.ASC : Sort.Direction.DESC, orderBy)), userCodeCurrency, userValueCurrency);
+        } else if(start != null && end != null){
+            expenses = convertExpense(expenseRepository.filterByDate(userId, start, end, Sort.by(order.equals("ASC") ? Sort.Direction.ASC : Sort.Direction.DESC, orderBy)), userCodeCurrency, userValueCurrency);
+        }else {
+            expenses = convertExpense(expenseRepository.getAllByUserId(userId, Sort.by(order.equals("ASC") ? Sort.Direction.ASC : Sort.Direction.DESC, orderBy)), userCodeCurrency, userValueCurrency);
+        }
+
+        if(amountMin != null && amountMax != null){
+            for(int i = 0; i < expenses.size(); i++){
+                if(expenses.get(i).getAmount() < amountMin || expenses.get(i).getAmount() > amountMax){
+                    expenses.remove(i);
+                    i--;
+                }
+            }
+        }
+
+        return expenseMapper.listEntityToListResponseDto(expenses);
     }
 
     public StatisticsResponseDto getStatistics(String token){
@@ -159,16 +210,16 @@ public class ExpenseServiceImpl extends GenericServiceImpl<Expense, ExpenseRespo
         Double userValueCurrency = user.getCurrency().getValueDollar();
 
         LocalDate now = LocalDate.now();
-        Integer month = now.getMonthValue();
-        Integer year = now.getYear();
+        int month = now.getMonthValue();
+        int year = now.getYear();
 
         Double balanceYearly = incomeService.getBalanceYearlyByUserId(userId, now.getYear());
 
         List<Double> incomes = new ArrayList<>();
         List<Double> expenses = new ArrayList<>();
         List<Month> months = new ArrayList<>();
-        Double balanceIncome = 0.0;
-        Double balanceExpense = 0.0;
+        Double balanceIncome;
+        Double balanceExpense;
 
         if(now.getMonthValue() == 12){
             for(int i=0; i<12; i++){
@@ -209,42 +260,10 @@ public class ExpenseServiceImpl extends GenericServiceImpl<Expense, ExpenseRespo
     @Override
     public Map<String, Double> groupByCategoryByUserId(String token){
         List<ExpenseResponseDto> expenses = getAllByUserId(token);
-        Map<String, Double> categoryGroups = expenses.stream().collect(Collectors.groupingBy(ExpenseResponseDto::getCategoria, Collectors.summingDouble(ExpenseResponseDto::getImporte)));
-        return categoryGroups;
+        return expenses.stream().collect(Collectors.groupingBy(ExpenseResponseDto::getCategoryName, Collectors.summingDouble(ExpenseResponseDto::getAmount)));
     }
 
     @Override
-    public List<ExpenseResponseDto> filter(String token, List<Long> categoriesId, Double amountMin, Double amountMax, LocalDate start, LocalDate end, String orderBy, String order) {
-
-        Long userId = jwtUtil.extractUserId(token);
-        User user = userService.getById(userId);
-        String userCodeCurrency = user.getCurrency().getCodeCurrency();
-        Double userValueCurrency = user.getCurrency().getValueDollar();
-
-        List<Expense> expenses;
-
-        if(categoriesId != null && start != null && end != null){
-            expenses = convertExpense(expenseRepository.filterByCategoriesAndDate(userId, categoriesId, start, end, Sort.by(order.equals("ASC") ? Sort.Direction.ASC : Sort.Direction.DESC, orderBy)), userCodeCurrency, userValueCurrency);
-        } else if(categoriesId != null){
-            expenses = convertExpense(expenseRepository.filterByCategories(userId, categoriesId, Sort.by(order.equals("ASC") ? Sort.Direction.ASC : Sort.Direction.DESC, orderBy)), userCodeCurrency, userValueCurrency);
-        } else if(start != null && end != null){
-            expenses = convertExpense(expenseRepository.filterByDate(userId, start, end, Sort.by(order.equals("ASC") ? Sort.Direction.ASC : Sort.Direction.DESC, orderBy)), userCodeCurrency, userValueCurrency);
-        }else {
-            expenses = convertExpense(expenseRepository.getAllByUserId(userId, Sort.by(order.equals("ASC") ? Sort.Direction.ASC : Sort.Direction.DESC, orderBy)), userCodeCurrency, userValueCurrency);
-        }
-
-        if(amountMin != null && amountMax != null){
-            for(int i = 0; i < expenses.size(); i++){
-                if(expenses.get(i).getAmount() < amountMin || expenses.get(i).getAmount() > amountMax){
-                    expenses.remove(i);
-                    i--;
-                }
-            }
-        }
-
-        return expenseMapper.listEntityToListResponseDto(expenses);
-    }
-
     public void delete(Long id, String token) {
 
         Long userId = jwtUtil.extractUserId(token);
@@ -259,7 +278,15 @@ public class ExpenseServiceImpl extends GenericServiceImpl<Expense, ExpenseRespo
         }
     }
 
-    //genérico
+    public Double getBalanceMonthlyByUserId(List<Expense> expenses) {
+
+        Double balance = 0.0;
+        for (Expense expense : expenses){
+            balance += expense.getAmount();
+        }
+        return balance;
+    }
+
     public Double formatDecimals(Double number, Integer decimals) {
         return Math.round(number * Math.pow(10, decimals)) / Math.pow(10, decimals);
     }
